@@ -62,3 +62,16 @@ add_custom_command(TARGET Fuser_CustomSongCreator POST_BUILD        # Adds a pos
     COMMAND ${CMAKE_COMMAND} -E copy_if_different  # which executes "cmake - E copy_if_different..."
         "${CMAKE_CURRENT_SOURCE_DIR}/bass/bass.dll"      # <--this is in-file
         $<TARGET_FILE_DIR:Fuser_CustomSongCreator>)                 # <--this is out-file path
+
+# Stamped into saved songs; configure again after tagging a release to pick up the new tag
+execute_process(
+    COMMAND git describe --tags --always --dirty
+    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+    OUTPUT_VARIABLE FCSC_VERSION
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+    ERROR_QUIET
+)
+if(NOT FCSC_VERSION)
+    set(FCSC_VERSION "unknown")
+endif()
+target_compile_definitions(Fuser_CustomSongCreator PRIVATE FCSC_VERSION="${FCSC_VERSION}")

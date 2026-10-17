@@ -696,7 +696,22 @@ void display_main_properties() {
 		unsavedChanges = true;
 	ImGui::SameLine();
 	HelpMarker("When checked, the song will show up under the 'Stream Optimized' category in the game. This means it falls under a license that would make it safe for streaming/videos. Public domain songs, original songs (in-house), and some versions of the Creative Commons license fall under this category. If you're unsure, leave this unchecked.");
-} 
+
+	if (root.resavedByOlderCreator) {
+		ImGui::TextColored(
+			ImVec4(1.0f, 0.8f, 0.2f, 1.0f),
+			"Re-saved by an older creator version after %s",
+			root.creatorVersion.c_str());
+		ImGui::SameLine();
+		HelpMarker("Saving it with this version brings it up to date.");
+	}
+	else if (!root.creatorVersion.empty()) {
+		ImGui::TextDisabled("Last saved by creator %s", root.creatorVersion.c_str());
+	}
+	else {
+		ImGui::TextDisabled("Last saved by a creator version before version stamps");
+	}
+}
 //#include "stb_image_write.h"
 
 void update_texture(std::string filepath, AssetLink<IconFileAsset> icon) {

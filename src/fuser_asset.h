@@ -1,6 +1,7 @@
 #pragma once
 
 #include "core_types.h"
+#include "version.h"
 
 #include <iostream>
 
@@ -1079,6 +1080,9 @@ struct AssetRoot {
 	i32 year;
 	i32 bpm;
 
+	std::string creatorVersion;
+	bool resavedByOlderCreator = false;
+
 	SongPakEntry file;
 
 	std::vector<FileLink<CelData>> celData;
@@ -1117,6 +1121,30 @@ struct AssetRoot {
 		}
 
 		return 0;
+	}
+
+	/*
+	 * Creators from before the chord end fix end every MIDI's last chord at the song's final tick,
+	 * while this one ends it at -1, as the game does. So a song stamped with a creator version but
+	 * showing the old ending was re-saved by an older creator, and its stamp is out of date.
+	 */
+	static bool hasPreChordFixEnds(PakFile& pak) {
+		for (auto& entry : pak.entries) {
+			auto* data = std::get_if<PakFile::PakEntry::PakAssetData>(&entry.data);
+			if (!data || data->data.catagoryValues.empty()) {
+				continue;
+			}
+			auto* asset = std::get_if<HmxAssetFile>(&data->data.catagoryValues[0].value);
+			if (!asset || asset->audio.audioFiles.empty()) {
+				continue;
+			}
+			auto& header = asset->audio.audioFiles[0].resourceHeader;
+			auto* midi = std::get_if<HmxAudio::PackageFile::MidiFileResource>(&header);
+			if (midi && !midi->chords.empty() && midi->chords.back().end != (u32)-1) {
+				return true;
+			}
+		}
+		return false;
 	}
 
 	bool wouldSaveFullyBlankSong() const {
@@ -1164,6 +1192,8 @@ struct AssetRoot {
 				isStreamOptimized = false;
 			}
 			ctx.isStreamOptimized = isStreamOptimized;
+			auto versionProp = ctx.getProp<StringProperty>("CreatorVersion");
+			creatorVersion = versionProp != nullptr ? versionProp->str : "";
 			auto genrePtr = ctx.getProp<EnumProperty>(ctx.curEntry, "Genre");
 			auto genreStr = genrePtr->value.getString(ctx.getHeader());
 			genre = FuserEnums::ToValue<FuserEnums::Genre>(genreStr);
@@ -1231,6 +1261,7 @@ struct AssetRoot {
 			}
 			ctx.songKey = songKey = actualKey;
 			ctx.curKeyMode = keyMode = actualMode;
+			resavedByOlderCreator = !creatorVersion.empty() && hasPreChordFixEnds(*ctx.pak);
 		}
 		else {
 			ctx.smallArt = true;
@@ -1242,6 +1273,12 @@ struct AssetRoot {
 			ctx.serializeEnum("Genre", genreStr);
 			auto streamOptimizedProp = ctx.getOrCreateProp<BoolProperty>("IsStreamOptimized");
 			streamOptimizedProp.prop->value = isStreamOptimized;
+
+			// The game skips properties its class doesn't define, so the stamp is invisible to it
+			auto versionProp = ctx.getOrCreateProp<StringProperty>("CreatorVersion");
+			versionProp.prop->str = FCSC_VERSION;
+			creatorVersion = FCSC_VERSION;
+			resavedByOlderCreator = false;
 
 			for (auto &&e : celData) {
 				if (e.linkVal != 0) {
