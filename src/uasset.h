@@ -1440,7 +1440,9 @@ struct HmxAudio {
 							}
 						}
 						else if (event.type == EventType::Sysex || event.type == EventType::SysexRaw) {
-							//do nothing for sysex, isn't used.
+							// Not used by the game, and an MFR event has no form for it:
+							// adding it would save an event with no type
+							continue;
 						}
 						else {
 							MFRTrack::MFREvent::EventData_Midi mfrMidi;
