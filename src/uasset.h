@@ -1515,6 +1515,13 @@ struct HmxAudio {
 							if (event.type != EventType::Meta) continue;
 							auto meta = std::get<MetaEvent>(event.inner_event);
 							if (meta.type == MetaEventType::Text) {
+								// A second chord on the same tick replaces the first,
+								// as in the game's own chord builder, rather than
+								// ending the first before its start
+								if (!chords.empty() && chords.back().start == current_tick) {
+									chords.back().name = std::get<std::string>(meta.event);
+									continue;
+								}
 								if (chords.size() > 0) {
 									chords.back().end = current_tick - 1;
 								}
