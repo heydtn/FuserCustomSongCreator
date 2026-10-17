@@ -14,6 +14,7 @@ file(GLOB SRCS
     ${CMAKE_CURRENT_SOURCE_DIR}/src/SMF.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/main.cpp 
     ${CMAKE_CURRENT_SOURCE_DIR}/src/uasset.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/migrations.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/fuser_asset.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/core_types.h
     ${CMAKE_CURRENT_SOURCE_DIR}/src/serialize.h

@@ -969,6 +969,10 @@ struct HmxAudio {
 			bool is_single_note = true;
 			bool minor = false;
 			std::vector<std::string> chordList = { "1", "1m", "#1", "#1m", "2", "2m", "2mb5", "3", "3m", "b3", "b3m", "4", "4m", "5", "5m", "b5", "b5m", "b5mb5", "6", "6m", "b6", "b6m", "7", "7m", "7mb5", "b7", "b7m", "1sus2" };
+
+			// Brings a resource from an older song up to date; the migrations are in migrations.cpp
+			void applyMigrations();
+
 			struct MFRTrack {
 				u32 trackname_str_idx;
 
@@ -1247,8 +1251,8 @@ struct HmxAudio {
 						MFRTrack::MFREvent::EventData_Meta chdData;
 						auto &strings = chordsTrack.strings;
 						auto chordString = std::find(strings.begin(), strings.end(), chd.name);
-						// Names outside chordList are kept, not written without an index
-						// (e.g. "b2" from songs saved before it became "1sus2")
+						// Names outside chordList (e.g. from an imported MIDI) are kept,
+						// not written without an index
 						if (chordString == strings.end()) {
 							chordString = strings.insert(chordString, chd.name);
 						}
@@ -1303,6 +1307,10 @@ struct HmxAudio {
 				}
 				buffer.serialize(tracknames_len);
 				buffer.serializeWithSize_nonull(tracknames, tracknames_len);
+
+				if (buffer.loading) {
+					applyMigrations();
+				}
 			}
 
 			void MFRImport(std::string file) {
@@ -1630,6 +1638,7 @@ struct HmxAudio {
 				timesigs_len = timesigs.size();
 				beats_len = beats.size();
 				tracknames_len = tracknames.size();
+				applyMigrations();
 				updateChords();
 			}
 
