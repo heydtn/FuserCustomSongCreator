@@ -4,6 +4,7 @@
 #include "crc.h"
 #include "hmx_midifile.h"
 #include "SMF.h"
+#include <algorithm>
 #include <codecvt>
 #include <iostream>
 #include <cmath>
@@ -1487,6 +1488,19 @@ struct HmxAudio {
 
 						}
 						newTrack.events.emplace_back(mfrEvent);
+					}
+					// A MIDI track does not need to have a name event,
+					// but every MFR track is looked up by its name string
+					auto isTrackName = [](const TrackEvent& event) {
+						if (event.type != EventType::Meta) {
+							return false;
+						}
+						auto& meta = std::get<MetaEvent>(event.inner_event);
+						return meta.type == MetaEventType::TrackName;
+					};
+					if (std::none_of(track.events.begin(), track.events.end(), isTrackName)) {
+						newTrack.strings.emplace_back("");
+						newTrack.trackname_str_idx = (u32)(newTrack.strings.size() - 1);
 					}
 					newTrack.num_events = newTrack.events.size();
 					newTrack.num_strings = newTrack.strings.size();
