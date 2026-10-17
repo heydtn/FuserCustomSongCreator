@@ -1386,7 +1386,6 @@ struct HmxAudio {
 					u32 absolute_tick = 0;
 					int pbidx = 0;
 					for (auto& event : track.events) {
-						bool doNotAddEvent = false;
 						MFRTrack::MFREvent mfrEvent;
 						absolute_tick += event.delta_time;
 						mfrEvent.tick = absolute_tick;
@@ -1409,7 +1408,7 @@ struct HmxAudio {
 								MFRTrack::MFREvent::EventData_Meta metaEvent;
 								metaEvent.type = (u8)meta.type;
 								if (metaEvent.type < 1 || metaEvent.type>7) {
-									doNotAddEvent = true;
+									continue;
 								}
 								else {
 									std::string metaStr = std::get<std::string>(meta.event);
@@ -1480,14 +1479,12 @@ struct HmxAudio {
 								pbidx++;
 							}
 							else {
-								doNotAddEvent = true;
+								continue;
 							}
 							mfrEvent.event_data = std::move(mfrMidi);
 
 						}
-						if (!doNotAddEvent) {
-							newTrack.events.emplace_back(mfrEvent);
-						}
+						newTrack.events.emplace_back(mfrEvent);
 					}
 					newTrack.num_events = newTrack.events.size();
 					newTrack.num_strings = newTrack.strings.size();
