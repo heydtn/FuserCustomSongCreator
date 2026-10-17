@@ -625,10 +625,10 @@ struct ByteProperty {
 			size_t headerStart = buffer.pos;
 
 			buffer.serialize(enumType);
-			u8 null;
+			u8 null = 0;
 			buffer.serialize(null);
 
-			buffer.ctx<AssetCtx>().headerSize += (headerStart - buffer.pos);
+			buffer.ctx<AssetCtx>().headerSize += (buffer.pos - headerStart);
 		}
 
 		if (buffer.ctx<AssetCtx>().length == 1) {
