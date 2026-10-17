@@ -572,7 +572,6 @@ struct MapProperty {
 
 struct StructProperty {
 	static const bool custom_header = true;
-	static const bool needs_length = true;
 
 	Guid guid;
 	StringRef64 type;
@@ -636,11 +635,14 @@ struct BoolProperty {
 	bool value;
 
 	void serialize(DataBuffer &buffer) {
+		size_t start = buffer.pos;
 		buffer.serialize(value);
 
+		// In a property tag the value is part of the tag, so the engine writes the Size as 0
 		if (buffer.ctx<AssetCtx>().parseHeader) {
 			u8 null = 0;
 			buffer.serialize(null);
+			buffer.ctx<AssetCtx>().headerSize += (buffer.pos - start);
 		}
 	}
 };
@@ -656,8 +658,6 @@ struct DateTime {
 struct IPropertyDataList;
 
 struct UnknownProperty {
-	static const bool needs_length = true;
-
 	std::vector<u8> data;
 
 	void serialize(DataBuffer &buffer) {
@@ -673,8 +673,6 @@ namespace asset_helper {
 	std::string getTypeForValue(const PropertyValue &v);
 
 	void serialize(DataBuffer &buffer, i64 length, PropertyValue &value);
-
-	bool needsLength(const PropertyValue &value);
 
 	StringRef32 createNoneRef(DataBuffer &buffer);
 }
@@ -738,7 +736,9 @@ struct PropertyData {
 		buffer.ctx<AssetCtx>().headerSize = 0;
 		asset_helper::serialize(buffer, length, value);
 
-		if (!buffer.loading && asset_helper::needsLength(value)) {
+		// The engine's Size is always the value's byte length, and a value edited here
+		// no longer matches the Size it was loaded with
+		if (!buffer.loading) {
 			size_t finalPos = buffer.pos;
 			length = (finalPos - beforeProp) - buffer.ctx<AssetCtx>().headerSize;
 			buffer.pos = beforeProp - sizeof(length);
