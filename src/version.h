@@ -4,3 +4,5 @@
 #ifndef FCSC_VERSION
 #define FCSC_VERSION "unknown"
 #endif
+
+extern const int CurrentSaveFormat;

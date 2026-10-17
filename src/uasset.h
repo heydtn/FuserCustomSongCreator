@@ -939,8 +939,7 @@ struct HmxAudio {
 			bool minor = false;
 			std::vector<std::string> chordList = { "1", "1m", "#1", "#1m", "2", "2m", "2mb5", "3", "3m", "b3", "b3m", "4", "4m", "5", "5m", "b5", "b5m", "b5mb5", "6", "6m", "b6", "b6m", "7", "7m", "7mb5", "b7", "b7m", "1sus2" };
 
-			// Brings a resource from an older song up to date; the migrations are in migrations.cpp
-			void applyMigrations();
+			void applyMigrations(int savedFormat);
 
 			struct MFRTrack {
 				u32 trackname_str_idx;
@@ -1276,10 +1275,6 @@ struct HmxAudio {
 				}
 				buffer.serialize(tracknames_len);
 				buffer.serializeWithSize_nonull(tracknames, tracknames_len);
-
-				if (buffer.loading) {
-					applyMigrations();
-				}
 			}
 
 			void MFRImport(std::string file) {
@@ -1291,6 +1286,9 @@ struct HmxAudio {
 				dataBuf.loading = true;
 				dataBuf.setupVector(fileData);
 				serialize(dataBuf);
+
+				// A file outside a song has no save format stamp, so every migration applies
+				applyMigrations(0);
 			}
 
 			void MFR_to_midi(std::string file) {
@@ -1595,7 +1593,8 @@ struct HmxAudio {
 				timesigs_len = timesigs.size();
 				beats_len = beats.size();
 				tracknames_len = tracknames.size();
-				applyMigrations();
+				// An imported MIDI has no save format stamp, so every migration applies
+				applyMigrations(0);
 				updateChords();
 			}
 

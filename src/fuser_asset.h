@@ -1081,6 +1081,7 @@ struct AssetRoot {
 	i32 bpm;
 
 	std::string creatorVersion;
+	int saveFormat = 0;
 	bool resavedByOlderCreator = false;
 
 	SongPakEntry file;
@@ -1123,12 +1124,8 @@ struct AssetRoot {
 		return 0;
 	}
 
-	/*
-	 * Creators from before the chord end fix end every MIDI's last chord at the song's final tick,
-	 * while this one ends it at -1, as the game does. So a song stamped with a creator version but
-	 * showing the old ending was re-saved by an older creator, and its stamp is out of date.
-	 */
-	static bool hasPreChordFixEnds(PakFile& pak) {
+	template <typename Fn>
+	static void forEachMidi(PakFile& pak, Fn fn) {
 		for (auto& entry : pak.entries) {
 			auto* data = std::get_if<PakFile::PakEntry::PakAssetData>(&entry.data);
 			if (!data || data->data.catagoryValues.empty()) {
@@ -1139,12 +1136,28 @@ struct AssetRoot {
 				continue;
 			}
 			auto& header = asset->audio.audioFiles[0].resourceHeader;
-			auto* midi = std::get_if<HmxAudio::PackageFile::MidiFileResource>(&header);
-			if (midi && !midi->chords.empty() && midi->chords.back().end != (u32)-1) {
-				return true;
+			if (auto* midi = std::get_if<HmxAudio::PackageFile::MidiFileResource>(&header)) {
+				fn(*midi);
 			}
 		}
-		return false;
+	}
+
+	/*
+	 * Creators from before the chord end fix end every MIDI's last chord at the song's final tick,
+	 * while this one ends it at -1, as the game does. So a song stamped with a creator version but
+	 * showing the old ending was re-saved by an older creator, and its stamp is out of date.
+	 * Stamps and the chord end fix arrived together, so every creator that keeps a stamp without
+	 * rewriting it leaves this trace, but only in a song that has chords: a song without any
+	 * can't show it, and keeps a stale stamp.
+	 */
+	static bool hasPreChordFixEnds(PakFile& pak) {
+		bool found = false;
+		forEachMidi(pak, [&](HmxAudio::PackageFile::MidiFileResource& midi) {
+			if (!midi.chords.empty() && midi.chords.back().end != (u32)-1) {
+				found = true;
+			}
+		});
+		return found;
 	}
 
 	bool wouldSaveFullyBlankSong() const {
@@ -1194,6 +1207,8 @@ struct AssetRoot {
 			ctx.isStreamOptimized = isStreamOptimized;
 			auto versionProp = ctx.getProp<StringProperty>("CreatorVersion");
 			creatorVersion = versionProp != nullptr ? versionProp->str : "";
+			auto formatProp = ctx.getProp<PrimitiveProperty<i32>>("CreatorSaveFormat");
+			saveFormat = formatProp != nullptr ? formatProp->data : 0;
 			auto genrePtr = ctx.getProp<EnumProperty>(ctx.curEntry, "Genre");
 			auto genreStr = genrePtr->value.getString(ctx.getHeader());
 			genre = FuserEnums::ToValue<FuserEnums::Genre>(genreStr);
@@ -1262,6 +1277,12 @@ struct AssetRoot {
 			ctx.songKey = songKey = actualKey;
 			ctx.curKeyMode = keyMode = actualMode;
 			resavedByOlderCreator = !creatorVersion.empty() && hasPreChordFixEnds(*ctx.pak);
+
+			// A stale stamp says nothing about the data, so the song is treated as format 0
+			int migrateFrom = resavedByOlderCreator ? 0 : saveFormat;
+			forEachMidi(*ctx.pak, [&](HmxAudio::PackageFile::MidiFileResource& midi) {
+				midi.applyMigrations(migrateFrom);
+			});
 		}
 		else {
 			ctx.smallArt = true;
@@ -1277,7 +1298,10 @@ struct AssetRoot {
 			// The game skips properties its class doesn't define, so the stamp is invisible to it
 			auto versionProp = ctx.getOrCreateProp<StringProperty>("CreatorVersion");
 			versionProp.prop->str = FCSC_VERSION;
+			auto formatProp = ctx.getOrCreateProp<PrimitiveProperty<i32>>("CreatorSaveFormat");
+			formatProp.prop->data = CurrentSaveFormat;
 			creatorVersion = FCSC_VERSION;
+			saveFormat = CurrentSaveFormat;
 			resavedByOlderCreator = false;
 
 			for (auto &&e : celData) {
