@@ -4,6 +4,7 @@
 #include "crc.h"
 #include "hmx_midifile.h"
 #include "SMF.h"
+#include <algorithm>
 #include <codecvt>
 #include <iostream>
 #include <cmath>
@@ -1006,8 +1007,8 @@ struct HmxAudio {
 					};
 
 					struct EventData_Meta {
-						u8 type;
-						u16 string_index;
+						u8 type = 0;
+						u16 string_index = 0;
 						void serialize(DataBuffer& buffer) {
 							buffer.serialize(type);
 							buffer.serialize(string_index);
@@ -1213,11 +1214,14 @@ struct HmxAudio {
 					for (auto& chd : chords) {
 						MFRTrack::MFREvent chdEvent;
 						MFRTrack::MFREvent::EventData_Meta chdData;
-						for (int i = 0; i < chordsTrack.strings.size(); i++) {
-							if (chordsTrack.strings[i] == chd.name) {
-								chdData.string_index = i;
-							}
+						auto &strings = chordsTrack.strings;
+						auto chordString = std::find(strings.begin(), strings.end(), chd.name);
+						// Names outside chordList are kept, not written without an index
+						// (e.g. "b2" from songs saved before it became "1sus2")
+						if (chordString == strings.end()) {
+							chordString = strings.insert(chordString, chd.name);
 						}
+						chdData.string_index = (u16)(chordString - strings.begin());
 						chdData.type = 1;
 						chdEvent.event_data = std::move(chdData);
 						chdEvent.event_type = 8;
