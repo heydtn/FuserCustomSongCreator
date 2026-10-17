@@ -317,8 +317,7 @@ struct AssetHeader {
 
 	const std::string& getHeaderRef(i32 ref) const {
 		static std::string BAD_STRING = "BAD";
-		if (ref < 0) return BAD_STRING;
-		if (ref > names.size()) BAD_STRING;
+		if (ref < 0 || static_cast<size_t>(ref) >= names.size()) return BAD_STRING;
 		return names[ref].name;
 	}
 
