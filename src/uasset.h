@@ -1204,10 +1204,15 @@ struct HmxAudio {
 				chords_len = chords.size();
 				for (int i = 0; i < chords.size(); i++) {
 					if (i < chords.size() - 1) {
-						chords[i].end = chords[i + 1].end - 1;
+						// This specifically doesn't use the next chord's end,
+						// but its start instead, because the next chord's end
+						// has not been recomputed yet
+						chords[i].end = chords[i + 1].start - 1;
 					}
 					else {
-						chords[i].end = final_tick;
+						// The game's own chord builder ends the last chord at -1 rather than
+						// at the song's final tick, and its chord lookup treats -1 as no end
+						chords[i].end = (u32)-1;
 					}
 				}
 				int chordsTrack_idx = -1;
